@@ -1,4 +1,5 @@
 import streamlit as st
+import requests
 from rdkit import Chem
 from rdkit.Chem import Descriptors, AllChem, rdMolDescriptors
 import py3Dmol
@@ -6,16 +7,44 @@ from stmol import showmol
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
+# --- Helper Function for PubChem API ---
+def get_smiles_from_name(name):
+    """Queries the PubChem API to translate a common name into a SMILES string."""
+    try:
+        url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{name}/property/CanonicalSMILES/JSON"
+        response = requests.get(url)
+        if response.status_code == 200:
+            data = response.json()
+            return data['PropertyTable']['Properties'][0]['CanonicalSMILES']
+        return None
+    except:
+        return None
+
 # Set up the page layout
 st.set_page_config(page_title="Flavor Chemistry Viewer", layout="wide")
 st.title("Flavor & Pigment Molecule Viewer")
 
-# User input for SMILES
-smiles = st.text_input("Enter a SMILES string:", "O=Cc1ccc(O)c(OC)c1")
+# Updated user input to accept both
+user_input = st.text_input("Enter a Chemical Name (e.g., Limonene) or SMILES:", "Vanillin")
 
-if smiles:
-    mol = Chem.MolFromSmiles(smiles)
+if user_input:
+    # 1. First, assume the input is a SMILES string
+    mol = Chem.MolFromSmiles(user_input)
+    smiles_to_render = user_input
     
+    # 2. If RDKit fails (meaning it's a word, not a SMILES), ask PubChem
+    if mol is None:
+        with st.spinner(f"Looking up '{user_input}' in PubChem..."):
+            fetched_smiles = get_smiles_from_name(user_input)
+            
+            if fetched_smiles:
+                st.success(f"Found structure for {user_input}: {fetched_smiles}")
+                mol = Chem.MolFromSmiles(fetched_smiles)
+                smiles_to_render = fetched_smiles
+            else:
+                st.error(f"Could not find a structure for '{user_input}'. Please check the spelling.")
+
+    # 3. If we successfully built a molecule object, render the UI
     if mol is not None:
         # --- PART 1: 3D Generation & Calculations ---
         mol_3d = Chem.AddHs(mol)
@@ -30,7 +59,7 @@ if smiles:
         hbd = rdMolDescriptors.CalcNumHBD(mol)
         
         # --- PART 2: UI Layout ---
-        col1, col2 = st.columns([1, 2]) # Makes the right column twice as wide
+        col1, col2 = st.columns([1, 2])
         
         with col1:
             st.subheader("Molecular Properties")
@@ -39,7 +68,7 @@ if smiles:
             st.metric("Volume", f"{volume:.2f} Å³")
             st.metric("H-Bond Acceptors", hba)
             st.metric("H-Bond Donors", hbd)
-            st.info("Note: TPSA, Volume, and H-bonding sites dictate a molecule's polarity and its ability to form intermolecular interactions with solvents or olfactory receptors.")
+            st.info("Note: TPSA, Volume, and H-bonding sites dictate a molecule's polarity and its ability to form intermolecular interactions.")
             
         with col2:
             st.subheader("3D Lipophilicity Map")
@@ -65,8 +94,5 @@ if smiles:
             view.addSurface(py3Dmol.VDW, {'opacity': 0.6})
             view.zoomTo()
             
-            # Render in Streamlit using the stmol wrapper
+            # Render in Streamlit
             showmol(view, height=500, width=600)
-            
-    else:
-        st.error("Invalid SMILES string. Please check your input.")
