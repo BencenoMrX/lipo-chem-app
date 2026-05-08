@@ -4,95 +4,158 @@ from rdkit import Chem
 from rdkit.Chem import Descriptors, AllChem, rdMolDescriptors
 import py3Dmol
 from stmol import showmol
+import matplotlib.pyplot as plt
 import matplotlib.cm as cm
 import matplotlib.colors as mcolors
 
-# --- Helper Function for PubChem API ---
-def get_smiles_from_name(name):
-    """Queries the PubChem API to translate a common name into a SMILES string."""
+# --- Helper Functions ---
+def fetch_smiles(name):
+    """Queries databases for the English chemical name."""
+    try:
+        url = f"https://cactus.nci.nih.gov/chemical/structure/{name}/smiles"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200 and "<h1>" not in response.text:
+            return response.text.strip()
+    except:
+        pass
+        
     try:
         url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{name}/property/CanonicalSMILES/JSON"
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         if response.status_code == 200:
             data = response.json()
             return data['PropertyTable']['Properties'][0]['CanonicalSMILES']
-        return None
     except:
-        return None
+        pass
+    return None
 
-# Set up the page layout
+def get_smiles_from_name(name):
+    """Main pipeline: tries direct search, then tries Spanish-to-English translation."""
+    smiles = fetch_smiles(name)
+    if smiles:
+        return smiles, name 
+        
+    try:
+        wiki_url = "https://es.wikipedia.org/w/api.php"
+        params = {
+            "action": "query",
+            "prop": "langlinks",
+            "lllang": "en",
+            "titles": name.capitalize(), 
+            "format": "json"
+        }
+        res = requests.get(wiki_url, params=params, timeout=5).json()
+        pages = res.get("query", {}).get("pages", {})
+        
+        for page_id, page_data in pages.items():
+            if "langlinks" in page_data:
+                english_name = page_data["langlinks"][0]["*"]
+                smiles = fetch_smiles(english_name)
+                if smiles:
+                    return smiles, english_name 
+    except:
+        pass
+    return None, None
+
+# --- Main App ---
 st.set_page_config(page_title="Flavor Chemistry Viewer", layout="wide")
 st.title("Flavor & Pigment Molecule Viewer")
 
-# Updated user input to accept both
-user_input = st.text_input("Enter a Chemical Name (e.g., Limonene) or SMILES:", "Vanillin")
+user_input = st.text_input("Enter a Chemical Name (e.g., Limonene, Agua) or SMILES:", "Vanillin")
 
 if user_input:
-    # 1. First, assume the input is a SMILES string
     mol = Chem.MolFromSmiles(user_input)
     smiles_to_render = user_input
     
-    # 2. If RDKit fails (meaning it's a word, not a SMILES), ask PubChem
     if mol is None:
-        with st.spinner(f"Looking up '{user_input}' in PubChem..."):
-            fetched_smiles = get_smiles_from_name(user_input)
+        with st.spinner(f"Searching databases for '{user_input}'..."):
+            fetched_smiles, translated_name = get_smiles_from_name(user_input)
             
             if fetched_smiles:
-                st.success(f"Found structure for {user_input}: {fetched_smiles}")
+                if translated_name and translated_name.lower() != user_input.lower():
+                    st.success(f"Translated '{user_input}' to '{translated_name}'. Found structure: {fetched_smiles}")
+                else:
+                    st.success(f"Found structure for {user_input}: {fetched_smiles}")
+                
                 mol = Chem.MolFromSmiles(fetched_smiles)
                 smiles_to_render = fetched_smiles
             else:
                 st.error(f"Could not find a structure for '{user_input}'. Please check the spelling.")
 
-    # 3. If we successfully built a molecule object, render the UI
     if mol is not None:
-        # --- PART 1: 3D Generation & Calculations ---
+        # 1. 3D Generation
         mol_3d = Chem.AddHs(mol)
         AllChem.EmbedMolecule(mol_3d, randomSeed=42)
         AllChem.MMFFOptimizeMolecule(mol_3d)
         
-        # Calculate Properties
+        # 2. Calculate Advanced Properties
+        mw = Descriptors.MolWt(mol)
         tpsa = Descriptors.TPSA(mol)
         logp = Descriptors.MolLogP(mol)
         volume = AllChem.ComputeMolVolume(mol_3d)
         hba = rdMolDescriptors.CalcNumHBA(mol)
         hbd = rdMolDescriptors.CalcNumHBD(mol)
+        rot_bonds = Descriptors.NumRotatableBonds(mol)
+        arom_rings = rdMolDescriptors.CalcNumAromaticRings(mol)
+        fcsp3 = rdMolDescriptors.CalcFractionCSP3(mol)
         
-        # --- PART 2: UI Layout ---
+        # 3. UI Layout
         col1, col2 = st.columns([1, 2])
         
         with col1:
-            st.subheader("Molecular Properties")
+            st.subheader("Physicochemical Properties")
+            st.metric("Molecular Weight", f"{mw:.2f} g/mol")
             st.metric("LogP (Lipophilicity)", f"{logp:.2f}")
             st.metric("TPSA (Polar Surface Area)", f"{tpsa:.2f} Å²")
             st.metric("Volume", f"{volume:.2f} Å³")
-            st.metric("H-Bond Acceptors", hba)
-            st.metric("H-Bond Donors", hbd)
-            st.info("Note: TPSA, Volume, and H-bonding sites dictate a molecule's polarity and its ability to form intermolecular interactions.")
+            
+            st.subheader("Intermolecular Interaction Drivers")
+            st.metric("H-Bond Acceptors / Donors", f"{hba} / {hbd}")
+            st.metric("Aromatic Rings (\u03C0-\u03C0 stacking)", arom_rings)
+            st.metric("Rotatable Bonds (Flexibility)", rot_bonds)
+            st.metric("Fraction Csp3 (3D Character)", f"{fcsp3:.2f}")
+            
+            st.info("Note: Properties like flexibility, volume, and aromaticity dictate if a flavor molecule can successfully bind to receptors or encapsulate within host matrices.")
             
         with col2:
-            st.subheader("3D Lipophilicity Map")
-            # Calculate atomic contributions to logP
-            contribs = [x[0] for x in rdMolDescriptors._CalcCrippenContribs(mol_3d)]
-            norm = mcolors.Normalize(vmin=min(contribs), vmax=max(contribs))
-            cmap = cm.coolwarm
+            st.subheader("3D Molecular Map")
             
-            # Map colors to atoms
-            atom_colors = {i: mcolors.to_hex(cmap(norm(contrib))) for i, contrib in enumerate(contribs)}
+            # Interactive Controls for the Map
+            control_col1, control_col2 = st.columns(2)
+            with control_col1:
+                show_surface = st.checkbox("Show Lipophilicity Map", value=True)
+            with control_col2:
+                cmap_name = st.selectbox("Color Scale", ["coolwarm", "bwr", "seismic", "RdYlBu", "PiYG"])
             
-            # Generate py3Dmol view
+            # Setup py3Dmol
             mb = Chem.MolToMolBlock(mol_3d)
             view = py3Dmol.view(width=600, height=500)
             view.addModel(mb, 'sdf')
             
-            for i, color in atom_colors.items():
-                view.setStyle({'index': i}, {
-                    'stick': {'color': color, 'radius': 0.15}, 
-                    'sphere': {'color': color, 'radius': 0.3}
-                })
+            if show_surface:
+                # Calculate contributions and colors
+                contribs = [x[0] for x in rdMolDescriptors._CalcCrippenContribs(mol_3d)]
+                cmap = cm.get_cmap(cmap_name)
+                norm = mcolors.Normalize(vmin=min(contribs), vmax=max(contribs))
                 
-            view.addSurface(py3Dmol.VDW, {'opacity': 0.6})
-            view.zoomTo()
+                # Draw the legend/colorbar using Matplotlib
+                fig, ax = plt.subplots(figsize=(6, 0.4))
+                fig.subplots_adjust(bottom=0.5)
+                cb = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), cax=ax, orientation='horizontal')
+                cb.set_label('More Hydrophilic (Negative LogP)    ←        →    More Lipophilic (Positive LogP)')
+                st.pyplot(fig)
+
+                # Color the atoms
+                for i, contrib in enumerate(contribs):
+                    hex_color = mcolors.to_hex(cmap(norm(contrib)))
+                    view.setStyle({'index': i}, {
+                        'stick': {'color': hex_color, 'radius': 0.15}, 
+                        'sphere': {'color': hex_color, 'radius': 0.3}
+                    })
+                view.addSurface(py3Dmol.VDW, {'opacity': 0.6})
+            else:
+                # Default CPK coloring if the map is turned off
+                view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
             
-            # Render in Streamlit
+            view.zoomTo()
             showmol(view, height=500, width=600)
