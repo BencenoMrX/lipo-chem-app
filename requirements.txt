@@ -3,3 +3,4 @@ rdkit
 py3Dmol
 stmol
 matplotlib
+ipython_genutils
