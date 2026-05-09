@@ -121,11 +121,13 @@ if user_input:
             st.subheader("3D Molecular Map")
             
             # Interactive Controls for the Map
-            control_col1, control_col2 = st.columns(2)
+            control_col1, control_col2, control_col3 = st.columns(3)
             with control_col1:
-                show_surface = st.checkbox("Show Lipophilicity Map", value=True)
+                show_surface = st.checkbox("Show atom lipophilicity", value=True)
             with control_col2:
                 cmap_name = st.selectbox("Color Scale", ["coolwarm", "bwr", "seismic", "RdYlBu", "PiYG"])
+            with control_col3:
+                surf_type = st.selectbox("3D surface type", ["VDW", "MS", "SAS", "SES"])
             
             # Setup py3Dmol
             mb = Chem.MolToMolBlock(mol_3d)
@@ -140,9 +142,9 @@ if user_input:
                 
                 # Draw the legend/colorbar using Matplotlib
                 fig, ax = plt.subplots(figsize=(6, 0.4))
-                fig.subplots_adjust(bottom=0.5)
+                fig.subplots_adjust(bottom=0.6)
                 cb = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), cax=ax, orientation='horizontal')
-                cb.set_label('More Hydrophilic    ←        →    More Lipophilic')
+                cb.set_label('More hydrophilic atoms   ←        →    More lipophilic atoms')
                 st.pyplot(fig)
 
                 # Color the atoms
@@ -152,10 +154,15 @@ if user_input:
                         'stick': {'color': hex_color, 'radius': 0.15}, 
                         'sphere': {'color': hex_color, 'radius': 0.3}
                     })
-                view.addSurface(py3Dmol.SAS, {'opacity': 0.6})
+                surf_options = {
+                        'opacity': 0.7,
+                        'colorscheme': 'spectrum',
+                        'type': surf_type 
+                    }
+                view.addSurface(py3Dmol.VDW, surf_options)
             else:
                 # Default CPK coloring if the map is turned off
                 view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
             
             view.zoomTo()
-            showmol(view, height=500, width=600)
+            showmol(view, height=600, width=600)
