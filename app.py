@@ -58,10 +58,10 @@ def get_smiles_from_name(name):
     return None, None
 
 # --- Main App ---
-st.set_page_config(page_title="Flavor Chemistry Viewer", layout="wide")
-st.title("Flavor & Pigment Molecule Viewer")
+st.set_page_config(page_title="Chemistry Viewer", layout="wide")
+st.title("Molecule 3D Viewer")
 
-user_input = st.text_input("Enter a Chemical Name (e.g., Limonene, Agua) or SMILES:", "Vanillin")
+user_input = st.text_input("Enter a chemical name (e.g., limonene, agua) or SMILES:", "Vanillin")
 
 if user_input:
     mol = Chem.MolFromSmiles(user_input)
@@ -115,7 +115,7 @@ if user_input:
             st.metric("Rotatable Bonds (Flexibility)", rot_bonds)
             st.metric("Fraction Csp3 (3D Character)", f"{fcsp3:.2f}")
             
-            st.info("Note: Properties like flexibility, volume, and aromaticity dictate if a flavor molecule can successfully bind to receptors or encapsulate within host matrices.")
+            #st.info("Note: Properties like flexibility, volume, and aromaticity dictate if a flavor molecule can successfully bind to receptors or encapsulate within host matrices.")
             
         with col2:
             st.subheader("3D Molecular Map")
@@ -142,7 +142,7 @@ if user_input:
                 fig, ax = plt.subplots(figsize=(6, 0.4))
                 fig.subplots_adjust(bottom=0.5)
                 cb = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), cax=ax, orientation='horizontal')
-                cb.set_label('More Hydrophilic (Negative LogP)    ←        →    More Lipophilic (Positive LogP)')
+                cb.set_label('More Hydrophilic    ←        →    More Lipophilic')
                 st.pyplot(fig)
 
                 # Color the atoms
@@ -152,7 +152,7 @@ if user_input:
                         'stick': {'color': hex_color, 'radius': 0.15}, 
                         'sphere': {'color': hex_color, 'radius': 0.3}
                     })
-                view.addSurface(py3Dmol.VDW, {'opacity': 0.6})
+                view.addSurface(py3Dmol.SAS, {'opacity': 0.6})
             else:
                 # Default CPK coloring if the map is turned off
                 view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
