@@ -124,12 +124,19 @@ if user_input:
             # Interactive Controls for the Map
             control_col1, control_col2, control_col3 = st.columns(3)
             with control_col1:
-                show_surface = st.checkbox("Show VDW surface", value=True)
-                show_lipo = st.checkbox("Show atom lipophilicity", value=True)
+                show_surface = st.checkbox("Show 3D Surface", value=True)
+                show_lipo = st.checkbox("Show Atom Lipophilicity", value=True)
             with control_col2:
                 cmap_name = st.selectbox("Color Scale", ["coolwarm", "PiYG", "viridis", "RdYlGn"])
             with control_col3:
-                surf_type = st.selectbox("3D surface type", ["VDW", "MS", "SAS", "SES"])
+                surf_type = st.selectbox("3D Surface Type", ["VDW", "MS", "SAS", "SES"])
+
+            surface_mapping = {
+                    "VDW": py3Dmol.VDW, # Van der Waals
+                    "MS": py3Dmol.MS,   # Molecular Surface
+                    "SAS": py3Dmol.SAS, # Solvent Accessible Surface
+                    "SES": py3Dmol.SES  # Solvent Excluded Surface
+                }
             
             # Setup py3Dmol
             mb = Chem.MolToMolBlock(mol_3d)
@@ -159,13 +166,6 @@ if user_input:
                 # Default CPK coloring if the map is turned off
                 view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
 
-            surface_mapping = {
-                    "VDW": py3Dmol.VDW, # Van der Waals
-                    "MS": py3Dmol.MS,   # Molecular Surface
-                    "SAS": py3Dmol.SAS, # Solvent Accessible Surface
-                    "SES": py3Dmol.SES  # Solvent Excluded Surface
-                }
-
             if show_surface:
                 surf_options = {
                         'opacity': 0.9#,
@@ -173,7 +173,7 @@ if user_input:
                         #'type': surf_type 
                     }
                 selected_surface = surface_mapping[surf_type]
-                view.addSurface(selected_surface, surf_options)
+                view.addSurface(selected_surface, {'opacity': 0.7})
 
             view.zoomTo()
             showmol(view, height=600, width=600)
