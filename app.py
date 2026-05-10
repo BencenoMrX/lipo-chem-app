@@ -132,10 +132,10 @@ if user_input:
                 surf_type = st.selectbox("3D Surface Type", ["VDW", "MS", "SAS", "SES"])
 
             surface_mapping = {
-                    "VDW": py3Dmol.VDW, # Van der Waals
-                    "MS": py3Dmol.MS,   # Molecular Surface
-                    "SAS": py3Dmol.SAS, # Solvent Accessible Surface
-                    "SES": py3Dmol.SES  # Solvent Excluded Surface
+                    "VDW": py3Dmol.VDW,
+                    "MS": py3Dmol.MS,  
+                    "SAS": py3Dmol.SAS,
+                    "SES": py3Dmol.SES 
                 }
             
             # Setup py3Dmol
@@ -143,19 +143,22 @@ if user_input:
             view = py3Dmol.view(width=600, height=500)
             view.addModel(mb, 'sdf')
             
-            # Calculate logP contributions and colors
+            # Calculate logP contributions and map the colormap
             contribs = [x[0] for x in rdMolDescriptors._CalcCrippenContribs(mol_3d)]
             cmap = cm.get_cmap(cmap_name)
             norm = mcolors.Normalize(vmin=min(contribs), vmax=max(contribs))
 
-            for i, contrib in enumerate(contribs):
-                hex_color = mcolors.to_hex(cmap(norm(contrib)))
-                view.setStyle({'index': i}, {
-                    'stick': {'color': hex_color, 'radius': 0.15}, 
-                    'sphere': {'color': hex_color, 'radius': 0.3}
-                })
+            # 1. Create a dictionary mapping the atom index to its new hex color
+            color_map = {i: mcolors.to_hex(cmap(norm(contrib))) for i, contrib in enumerate(contribs)}
 
+            # 2. Style the Sticks and Spheres
             if show_lipo:
+                for i, color in color_map.items():
+                    view.setStyle({'index': i}, {
+                        'stick': {'color': color, 'radius': 0.15}, 
+                        'sphere': {'color': color, 'radius': 0.3}
+                    })
+                
                 # Draw the legend/colorbar using Matplotlib
                 fig, ax = plt.subplots(figsize=(6, 0.4))
                 fig.subplots_adjust(bottom=0.6)
@@ -166,14 +169,19 @@ if user_input:
                 # Default CPK coloring if the map is turned off
                 view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
 
+            # 3. Add the Surface
             if show_surface:
-                surf_options = {
-                        'opacity': 0.9#,
-                        #'colorscheme': 'spectrum',
-                        #'type': surf_type 
-                    }
                 selected_surface = surface_mapping[surf_type]
-                view.addSurface(selected_surface, {'opacity': 0.7})
+                surf_options = {'opacity': 0.7}
+                
+                # If lipophilicity is ON, force the surface to use our color_map via the atom index
+                if show_lipo:
+                    surf_options['colorscheme'] = {
+                        'prop': 'index',
+                        'map': color_map
+                    }
+                    
+                view.addSurface(selected_surface, surf_options)
 
             view.zoomTo()
             showmol(view, height=600, width=600)
