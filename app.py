@@ -114,7 +114,8 @@ if user_input:
             st.metric("Aromatic Rings (\u03C0-\u03C0 stacking)", arom_rings)
             st.metric("Rotatable Bonds (Flexibility)", rot_bonds)
             st.metric("Fraction Csp3 (3D Character)", f"{fcsp3:.2f}")
-            
+
+            st.info("LogP calculated by Wildman-Crippen method, assigning a lipophilicity value to each atom depending on its chemical environment, and adding them over the molecule.")
             #st.info("Note: Properties like flexibility, volume, and aromaticity dictate if a flavor molecule can successfully bind to receptors or encapsulate within host matrices.")
             
         with col2:
@@ -123,9 +124,10 @@ if user_input:
             # Interactive Controls for the Map
             control_col1, control_col2, control_col3 = st.columns(3)
             with control_col1:
-                show_surface = st.checkbox("Show atom lipophilicity", value=True)
+                show_surface = st.checkbox("Show VDW surface", value=True)
+                show_lipo = st.checkbox("Show atom lipophilicity", value=True)
             with control_col2:
-                cmap_name = st.selectbox("Color Scale", ["coolwarm", "bwr", "seismic", "RdYlBu", "PiYG"])
+                cmap_name = st.selectbox("Color Scale", ["coolwarm", "bwr", "seismic", "RdYlBu", "PiYG", "viridis", "cool", "berlin", "managua", "vanimo"])
             with control_col3:
                 surf_type = st.selectbox("3D surface type", ["VDW", "MS", "SAS", "SES"])
             
@@ -134,35 +136,36 @@ if user_input:
             view = py3Dmol.view(width=600, height=500)
             view.addModel(mb, 'sdf')
             
-            if show_surface:
-                # Calculate contributions and colors
-                contribs = [x[0] for x in rdMolDescriptors._CalcCrippenContribs(mol_3d)]
-                cmap = cm.get_cmap(cmap_name)
-                norm = mcolors.Normalize(vmin=min(contribs), vmax=max(contribs))
-                
+            # Calculate logP contributions and colors
+            contribs = [x[0] for x in rdMolDescriptors._CalcCrippenContribs(mol_3d)]
+            cmap = cm.get_cmap(cmap_name)
+            norm = mcolors.Normalize(vmin=min(contribs), vmax=max(contribs))
+
+            for i, contrib in enumerate(contribs):
+                hex_color = mcolors.to_hex(cmap(norm(contrib)))
+                view.setStyle({'index': i}, {
+                    'stick': {'color': hex_color, 'radius': 0.15}, 
+                    'sphere': {'color': hex_color, 'radius': 0.3}
+                })
+
+            if show_lipo:
                 # Draw the legend/colorbar using Matplotlib
                 fig, ax = plt.subplots(figsize=(6, 0.4))
                 fig.subplots_adjust(bottom=0.6)
                 cb = plt.colorbar(cm.ScalarMappable(norm=norm, cmap=cmap), cax=ax, orientation='horizontal')
                 cb.set_label('More hydrophilic atoms   ←        →    More lipophilic atoms')
                 st.pyplot(fig)
+            else:
+                # Default CPK coloring if the map is turned off
+                view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
 
-                # Color the atoms
-                for i, contrib in enumerate(contribs):
-                    hex_color = mcolors.to_hex(cmap(norm(contrib)))
-                    view.setStyle({'index': i}, {
-                        'stick': {'color': hex_color, 'radius': 0.15}, 
-                        'sphere': {'color': hex_color, 'radius': 0.3}
-                    })
+            if show_surface:
                 surf_options = {
                         'opacity': 0.7,
                         'colorscheme': 'spectrum',
                         'type': surf_type 
                     }
                 view.addSurface(py3Dmol.VDW, surf_options)
-            else:
-                # Default CPK coloring if the map is turned off
-                view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
-            
+
             view.zoomTo()
             showmol(view, height=600, width=600)
