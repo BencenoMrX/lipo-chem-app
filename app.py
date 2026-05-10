@@ -159,35 +159,13 @@ if user_input:
                 # Default CPK coloring if the map is turned off
                 view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
 
-            if show_type == "VDW":
-                surf_options = {
-                        'opacity': 0.9,
-                        'colorscheme': 'spectrum'#,
-                        #'type': surf_type 
-                    }
-                view.addSurface(py3Dmol.VDW, surf_options)
-
             if show_surface:
-                if show_type == "SAS":
-                    surf_options = {
-                            'opacity': 0.9,
-                            'colorscheme': 'spectrum', 
-                        }
-                    view.addSurface(py3Dmol.SAS, surf_options)
-    
-                if show_type == "MS":
-                    surf_options = {
-                            'opacity': 0.9,
-                            'colorscheme': 'spectrum', 
-                        }
-                    view.addSurface(py3Dmol.MS, surf_options)
-    
-                if show_type == "SES":
-                    surf_options = {
-                            'opacity': 0.9,
-                            'colorscheme': 'spectrum', 
-                        }
-                    view.addSurface(py3Dmol.SES, surf_options)
+                surf_options = {
+                        'opacity': 0.7,
+                        'colorscheme': 'spectrum',
+                        'type': surf_type 
+                    }
+                view.addSurface(py3Dmol.SAS, surf_options)
 
             view.zoomTo()
             showmol(view, height=600, width=600)
