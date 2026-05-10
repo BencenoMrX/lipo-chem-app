@@ -112,7 +112,7 @@ if user_input:
             st.subheader("Intermolecular Interaction Drivers")
             st.metric("H-Bond Acceptors / Donors", f"{hba} / {hbd}")
             st.metric("Aromatic Rings (\u03C0-\u03C0 stacking)", arom_rings)
-            st.metric("Rotatable Bonds (Flexibility)", rot_bonds)
+            #st.metric("Rotatable Bonds (Flexibility)", rot_bonds)
             st.metric("Fraction Csp3 (3D Character)", f"{fcsp3:.2f}")
 
             st.info("LogP calculated by Wildman-Crippen method, assigning a lipophilicity value to each atom depending on its chemical environment, and adding them over the molecule.")
@@ -124,18 +124,18 @@ if user_input:
             # Interactive Controls for the Map
             control_col1, control_col2, control_col3 = st.columns(3)
             with control_col1:
-                show_surface = st.checkbox("Show 3D Surface", value=True)
-                show_lipo = st.checkbox("Show Atom Lipophilicity", value=True)
+                show_surface = st.checkbox("Show 3D surface", value=True)
+                show_lipo = st.checkbox("Show atom lipophilicity", value=True)
             with control_col2:
-                cmap_name = st.selectbox("Color Scale", ["coolwarm", "PiYG", "viridis", "RdYlGn"])
+                cmap_name = st.selectbox("Atom color scale", ["coolwarm", "PiYG", "viridis", "RdYlGn"])
             with control_col3:
-                surf_type = st.selectbox("3D Surface Type", ["VDW", "MS", "SAS", "SES"])
+                surf_type = st.selectbox("3D surface type", ["van der Waals", "Solvent accessible surface", "Solvent excluded surface"])
 
             surface_mapping = {
-                    "VDW": py3Dmol.VDW,
-                    "MS": py3Dmol.MS,  
-                    "SAS": py3Dmol.SAS,
-                    "SES": py3Dmol.SES 
+                    "van der Waals": py3Dmol.VDW,
+                    #"MS": py3Dmol.MS,  
+                    "Solvent accessible surface": py3Dmol.SAS,
+                    "Solvent excluded surface": py3Dmol.SES 
                 }
             
             # Setup py3Dmol
