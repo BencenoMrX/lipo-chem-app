@@ -127,7 +127,7 @@ if user_input:
                 show_surface = st.checkbox("Show VDW surface", value=True)
                 show_lipo = st.checkbox("Show atom lipophilicity", value=True)
             with control_col2:
-                cmap_name = st.selectbox("Color Scale", ["coolwarm", "bwr", "seismic", "RdYlBu", "PiYG", "viridis", "cool", "berlin", "managua", "vanimo"])
+                cmap_name = st.selectbox("Color Scale", ["coolwarm", "bwr", "seismic", "RdYlBu", "PiYG", "viridis", "RdYlGn", "rainbow", "nipy_spectral"])
             with control_col3:
                 surf_type = st.selectbox("3D surface type", ["VDW", "MS", "SAS", "SES"])
             
@@ -159,13 +159,34 @@ if user_input:
                 # Default CPK coloring if the map is turned off
                 view.setStyle({'stick': {'radius': 0.15}, 'sphere': {'radius': 0.3}})
 
-            if show_surface:
+            if show_surface == "VDW":
                 surf_options = {
-                        'opacity': 0.7,
-                        'colorscheme': 'spectrum',
-                        'type': surf_type 
+                        'opacity': 0.9,
+                        'colorscheme': 'spectrum'#,
+                        #'type': surf_type 
                     }
                 view.addSurface(py3Dmol.VDW, surf_options)
+
+            if show_surface == "SAS":
+                surf_options = {
+                        'opacity': 0.9,
+                        'colorscheme': 'spectrum', 
+                    }
+                view.addSurface(py3Dmol.SAS, surf_options)
+
+            if show_surface == "MS":
+                surf_options = {
+                        'opacity': 0.9,
+                        'colorscheme': 'spectrum', 
+                    }
+                view.addSurface(py3Dmol.MS, surf_options)
+
+            if show_surface == "SES":
+                surf_options = {
+                        'opacity': 0.9,
+                        'colorscheme': 'spectrum', 
+                    }
+                view.addSurface(py3Dmol.SES, surf_options)
 
             view.zoomTo()
             showmol(view, height=600, width=600)
